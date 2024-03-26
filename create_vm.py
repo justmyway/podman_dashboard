@@ -5,6 +5,43 @@ from concurrent.futures import ThreadPoolExecutor
 import getpass
 import time
 
+def get_folder(service_instance, folder_name):
+    # Get the root folder object
+    root_folder = service_instance.content.rootFolder
+
+    # Find the folder object with the given name
+    for child in root_folder.childEntity:
+        if child.name == folder_name and isinstance(child, vim.Folder):
+            return child
+
+    print(f"Folder '{folder_name}' not found.")
+
+    return root_folder
+
+def get_datastore(service_instance, datastore_name):
+    try:
+        # Get the root folder
+        content = service_instance.RetrieveContent()
+        root_folder = content.rootFolder
+
+        # Search for the datastore by name
+        datastore_view = content.viewManager.CreateContainerView(
+            container=root_folder,
+            type=[vim.Datastore],
+            recursive=True
+        )
+        datastore_list = datastore_view.view
+
+        for datastore in datastore_list:
+            if datastore.name == datastore_name:
+                return datastore
+
+        return None
+
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        return None
+
 def check_vm_exists(service_instance, vm_name):
     try:
         # Get the root folder
@@ -63,7 +100,12 @@ def clone_vm(service_instance, root_folder, template_name, clone_vm_name):
 
     # Clone the template VM
     try:
-        clone_spec = vim.vm.CloneSpec(powerOn=True)
+        target_datastore = get_datastore(service_instance, datastore_name)
+
+        relocate_spec = vim.vm.RelocateSpec()
+        relocate_spec.datastore = target_datastore
+
+        clone_spec = vim.vm.CloneSpec(powerOn=True, location=relocate_spec)
         clone_task = template_vm.Clone(folder=root_folder, name=clone_vm_name, spec=clone_spec)
         print(f"Cloning VM '{template_name}' to '{clone_vm_name}'...")
 
@@ -196,7 +238,8 @@ password        = getpass.getpass("Enter your password: ")
 
 vm_names        = [f"vm_{i}" for i in range(1, 101)]
 template_name   = ""
-root_folder     = ""
+folder_name     = ""
+datastore_name  = ""
 
 # Connect to the vCenter server
 service_instance = connect.SmartConnectNoSSL(
@@ -204,6 +247,9 @@ service_instance = connect.SmartConnectNoSSL(
     user=username,
     pwd=password
 )
+
+# Get the vm folder
+root_folder = get_folder(service_instance, folder_name)
 
 # Start the timer
 start_time = time.time()
