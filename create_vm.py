@@ -5,9 +5,53 @@ from concurrent.futures import ThreadPoolExecutor
 import getpass
 import time
 
+def get_resource_pool(service_instance, resource_pool_name):
+    try:
+        # Get the root folder
+        content = service_instance.RetrieveContent()
+        root_folder = content.rootFolder
+
+        # Search for the resource pool by name
+        resource_pool_view = content.viewManager.CreateContainerView(
+            container=root_folder,
+            type=[vim.ResourcePool],
+            recursive=True
+        )
+        resource_pool_list = resource_pool_view.view
+
+        for resource_pool in resource_pool_list:
+            if resource_pool.name == resource_pool_name:
+                return resource_pool
+
+        return None
+
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        return None
+
 def get_folder(service_instance, folder_name):
     # Get the root folder object
     root_folder = service_instance.content.rootFolder
+    def get_all_folders(service_instance):
+        try:
+            # Get the root folder
+            content = service_instance.RetrieveContent()
+            root_folder = content.rootFolder
+
+            # Create a container view for all folders
+            folder_view = content.viewManager.CreateContainerView(
+                container=root_folder,
+                type=[vim.Folder],
+                recursive=True
+            )
+            folder_list = folder_view.view
+
+            return folder_list
+
+        except Exception as e:
+            print(f"Error: {str(e)}")
+            return []
+
 
     # Find the folder object with the given name
     for child in root_folder.childEntity:
